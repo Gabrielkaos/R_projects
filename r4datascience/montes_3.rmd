@@ -1,0 +1,287 @@
+---
+title: "Data Transformation"
+author: "Gabriel Montes"
+date: "2025-07-17"
+output: pdf_document
+---
+
+## Exercise 3.2.5
+
+### 1. In a single pipeline for each condition, find all flights that meet the condition:
+
+#### Had an arrival delay of two or more hours
+```{r}
+library(nycflights13)
+library(dplyr)
+flights |>
+  filter(arr_delay >= 120)
+```
+
+#### Flew to Houston (IAH or HOU)
+```{r}
+flights |> 
+  filter(dest == "IAH" | dest == "HOU")
+```
+
+#### Were operated by United, American, or Delta
+```{r}
+flights |> 
+  filter(carrier %in% c("UA", "AA", "DL"))
+```
+
+#### Departed in summer (July, August, and September)
+```{r}
+flights |> 
+  filter(month %in% c(7, 8, 9))
+```
+
+#### Arrived more than two hours late but didn’t leave late
+```{r}
+flights |> 
+  filter(arr_delay > 120, dep_delay <= 0)
+```
+
+#### Were delayed by at least an hour, but made up over 30 minutes in flight
+```{r}
+flights |> 
+  filter(dep_delay >= 60, dep_delay - arr_delay > 30)
+```
+
+
+### 2. Sort flights to find the flights with the longest departure delays. Find the flights that left earliest in the morning.
+
+```{r}
+flights |> 
+  arrange(desc(dep_delay))
+```
+
+### 3. Sort flights to find the fastest flights. (Hint: Try including a math calculation inside of your function.)
+
+```{r}
+flights |> 
+  mutate(speed = distance / (air_time / 60)) |>
+  arrange(desc(speed))
+```
+
+### 4. Was there a flight on every day of 2013?
+
+```{r}
+flights |> 
+  count(year, month, day) |> 
+  nrow() == 365
+```
+
+### 5. Which flights traveled the farthest distance? Which traveled the least distance?
+
+#### Farthest flight
+```{r}
+flights |> 
+  arrange(desc(distance))
+```
+
+#### Shortest flight
+```{r}
+flights |> 
+  arrange(distance)
+```
+
+### 6. Does it matter what order you used filter() and arrange() if you’re using both? Why/why not? Think about the results and how much work the functions would have to do.
+
+so if you use filter() first it filters the dataset thus making it smaller, if you use arrange() first, you are sorting the whole dataset, so order matters
+
+## Exercise 3.3.5
+
+### 1. Compare dep_time, sched_dep_time, and dep_delay. How would you expect those three numbers to be related?
+
+```{r}
+flights |> 
+  select(dep_time, sched_dep_time, dep_delay) |> 
+  mutate(
+    dep_time_mins = (dep_time %/% 100) * 60 + (dep_time %% 100),
+    sched_dep_time_mins = (sched_dep_time %/% 100) * 60 + (sched_dep_time %% 100),
+    calculated_delay = dep_time_mins - sched_dep_time_mins
+  )
+```
+
+### 2. Brainstorm as many ways as possible to select dep_time, dep_delay, arr_time, and arr_delay from flights.
+
+```{r}
+
+flights |> select(dep_time, dep_delay, arr_time, arr_delay)
+
+
+flights |> select(ends_with("time"), ends_with("delay"))
+```
+
+### 3. What happens if you specify the name of the same variable multiple times in a select() call?
+
+```{r}
+flights |> select(dep_time, dep_time, dep_time)
+```
+
+they are ignored
+
+### 4. What does the any_of() function do? Why might it be helpful in conjunction with this vector?
+
+```{r}
+vars <- c("year", "month", "day", "not_a_column")
+flights |> select(any_of(vars))
+```
+
+it is safer to use than all_of
+
+### 5. Does the result of running the following code surprise you? How do the select helpers deal with upper and lower case by default? How can you change that default?
+
+```{r}
+flights |> select(contains("TIME"))
+```
+
+it is case sensitive
+
+```{r}
+flights |> select(contains("time", ignore.case = TRUE))
+```
+
+to make it non sensitive
+
+### 6. Rename air_time to air_time_min to indicate units of measurement and move it to the beginning of the data frame.
+
+```{r}
+flights |> 
+  rename(air_time_min = air_time) |>
+  relocate(air_time_min)
+```
+
+### 7. Why doesn’t the following work, and what does the error mean?
+
+flights |> 
+  select(tailnum) |> 
+  arrange(arr_delay)
+  
+to fix it, because the arr_delay is removed, we need to include it in select
+```{r}
+flights |> 
+  select(tailnum, arr_delay) |> 
+  arrange(arr_delay)
+```
+
+## Exercise 3.5.7
+
+### 1. Which carrier has the worst average delays? Challenge: can you disentangle the effects of bad airports vs. bad carriers? Why/why not? (Hint: think about flights |> group_by(carrier, dest) |> summarize(n()))
+
+```{r}
+library(nycflights13)
+library(dplyr)
+
+flights |> 
+  group_by(carrier) |> 
+  summarize(avg_delay = mean(dep_delay, na.rm = TRUE)) |> 
+  arrange(desc(avg_delay)) |> 
+  head()
+```
+
+to untangle
+
+```{r}
+flights |> 
+  group_by(carrier, dest) |> 
+  summarize(avg_delay = mean(dep_delay, na.rm = TRUE), n = n()) |> 
+  filter(n > 50) |> 
+  arrange(desc(avg_delay))
+```
+
+### 2. Find the flights that are most delayed upon departure from each destination.
+
+```{r}
+flights |> 
+  group_by(dest) |> 
+  slice_max(dep_delay, n = 1, with_ties = FALSE) |> 
+  select(dest, carrier, flight, dep_delay)
+```
+
+### 3. How do delays vary over the course of the day? Illustrate your answer with a plot.
+
+```{r}
+library(ggplot2)
+flights |> 
+  mutate(hour = dep_time %/% 100) |>
+  group_by(hour) |> 
+  summarize(avg_delay = mean(dep_delay, na.rm = TRUE),
+            count = n()) |> 
+  ggplot(aes(x = hour, y = avg_delay)) +
+    geom_line() +
+    labs(x = "Departure Hour", y = "Average Departure Delay")
+```
+
+### 4. What happens if you supply a negative n to slice_min() and friends?
+
+they will be ignored as they use absolute values
+
+### 5. Explain what count() does in terms of the dplyr verbs you just learned. What does the sort argument to count() do?
+
+count() is like grouping and then sorting is sorting, so you get the most common characteristics
+
+### 6. Suppose we have the following tiny data frame:
+
+```{r}
+df <- tibble(
+  x = 1:5,
+  y = c("a", "b", "a", "a", "b"),
+  z = c("K", "K", "L", "L", "K")
+)
+```
+
+a. Write down what you think the output will look like, then check if you were correct, and describe what group_by() does.
+
+```{r}
+df |>
+  group_by(y)
+```
+
+groups it by y
+
+b. Write down what you think the output will look like, then check if you were correct, and describe what arrange() does. Also, comment on how it’s different from the group_by() in part (a).
+```{r}
+df |>
+  arrange(y)
+```
+
+this will sort it alphabetically based on y
+
+c. Write down what you think the output will look like, then check if you were correct, and describe what the pipeline does.
+
+```{r}
+df |>
+  group_by(y) |>
+  summarize(mean_x = mean(x))
+```
+
+will summarize one row per group
+
+d. Write down what you think the output will look like, then check if you were correct, and describe what the pipeline does. Then, comment on what the message says.
+
+```{r}
+df |> group_by(y, z) |> summarize(mean_x = mean(x))
+```
+
+one row for each combination of y and z
+
+e. Write down what you think the output will look like, then check if you were correct, and describe what the pipeline does. How is the output different from the one in part (d)?
+
+```{r}
+df |>
+  group_by(y, z) |>
+  summarize(mean_x = mean(x), .groups = "drop")
+```
+
+dropping groups prevents retention of grouping
+
+f. Write down what you think the outputs will look like, then check if you were correct, and describe what each pipeline does. How are the outputs of the two pipelines different?
+
+```{r}
+df |> 
+  group_by(y, z) |> 
+  mutate(mean_x = mean(x))
+```
+
+mutate() adds a column with repeated summary stats, while summarize() condenses groups to single rows

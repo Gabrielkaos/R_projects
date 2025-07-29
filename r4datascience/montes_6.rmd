@@ -1,0 +1,18 @@
+---
+title: 'Workflow: scripts and projects'
+author: "Gabriel Montes"
+date: "2025-07-17"
+output: pdf_document
+---
+
+### 1. Go to the RStudio Tips Twitter account, https://twitter.com/rstudiotips and find one tip that looks interesting. Practice using it!
+
+I discovered this math thingy, using two dollar signs, it has a preview of the math formula
+$$
+1 + 1 = 2
+$$
+
+
+
+### 2. What other common mistakes will RStudio diagnostics report? Read https://support.posit.co/hc/en-us/articles/205753617-Code-Diagnostics to find out.
+
